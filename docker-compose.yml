@@ -6,8 +6,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: meta
-      MYSQL_USER: atguigu
-      MYSQL_PASSWORD: Atguigu.123
+      MYSQL_USER: test1
+      MYSQL_PASSWORD: 123321
     ports:
       - "3306:3306"
     volumes:

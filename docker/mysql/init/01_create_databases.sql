@@ -6,8 +6,8 @@ CREATE DATABASE IF NOT EXISTS meta CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 -- 创建 dw 数据库
 CREATE DATABASE IF NOT EXISTS dw CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- 授权 atguigu 访问 dw
-GRANT ALL PRIVILEGES ON dw.* TO 'atguigu'@'%';
+-- 授权 test1 访问 dw
+GRANT ALL PRIVILEGES ON dw.* TO 'test1'@'%';
 FLUSH PRIVILEGES;
 
 USE meta;

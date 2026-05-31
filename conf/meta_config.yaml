@@ -1,95 +1,77 @@
 tables:
-  - name: dim_region
+
+  # ── DIM 层 ────────────────────────────────────────────────────────
+
+  - name: dim_product_type
     role: dim
-    description: 地区维度表，用于描述订单发生的地理区域信息。
+    layer: DIM
+    description: 产品类型维度表，定义信贷产品的基本属性，包含3种产品。
     columns:
-      - name: region_id
+      - name: product_type_id
         role: primary_key
-        description: 地区唯一标识。
-        alias: [地区ID, 区域ID]
-        sync: false
-
-      - name: province
-        role: dimension
-        description: 订单所属的省份名称。
-        alias: [省份, 省, 所在省份]
-        sync: true
-
-      - name: region_name
-        role: dimension
-        description: 订单所属的大区名称，如华东、华南等。
-        alias: [地区, 区域, 大区]
-        sync: true
-
-      - name: country
-        role: dimension
-        description: 地区所属国家名称。
-        alias: [国家, 国家名称]
-        sync: true
-
-  - name: dim_customer
-    role: dim
-    description: 客户维度表，描述下单客户的基本属性。
-    columns:
-      - name: customer_id
-        role: primary_key
-        description: 客户唯一标识。
-        alias: [客户ID, 用户ID]
-        sync: false
-
-      - name: customer_name
-        role: dimension
-        description: 客户名称。
-        alias: [客户名称, 用户名称]
-        sync: true
-
-      - name: gender
-        role: dimension
-        description: 客户性别。
-        alias: [性别]
-        sync: true
-
-      - name: member_level
-        role: dimension
-        description: 客户会员等级。
-        alias: [会员等级, 用户等级]
-        sync: true
-
-  - name: dim_product
-    role: dim
-    description: 商品维度表，描述商品的基本属性信息。
-    columns:
-      - name: product_id
-        role: primary_key
-        description: 商品唯一标识。
-        alias: [商品ID, 产品ID]
+        description: 产品类型唯一标识。
+        alias: [产品ID, 产品类型ID]
         sync: false
 
       - name: product_name
         role: dimension
-        description: 商品名称。
-        alias: [商品名称, 产品名称]
+        description: 产品名称，枚举值为消费分期12期/消费分期6期/小额消费贷3期。
+        alias: [产品, 产品名称, 产品类型, 贷款产品, 分期产品]
+        examples: [消费分期12期, 消费分期6期, 小额消费贷3期]
         sync: true
 
-      - name: category
+      - name: term_months
         role: dimension
-        description: 商品所属品类。
-        alias: [商品类别, 品类, 分类]
+        description: 该产品的还款期数，单位为月，枚举值为3/6/12。
+        alias: [期数, 还款期数, 贷款期限, 分期期数]
+        examples: [3, 6, 12]
+        sync: false
+
+      - name: annual_rate
+        role: measure
+        description: 产品年化利率，如0.1800表示18%。
+        alias: [年化利率, 利率, 年利率]
+        sync: false
+
+      - name: max_loan_amount
+        role: measure
+        description: 该产品的最高可放款金额，单位元。
+        alias: [最高放款金额, 最大贷款额, 额度上限]
+        sync: false
+
+  - name: dim_channel
+    role: dim
+    layer: DIM
+    description: 渠道维度表，定义放款渠道信息，包含5个渠道（3个线上，2个线下）。
+    columns:
+      - name: channel_id
+        role: primary_key
+        description: 渠道唯一标识。
+        alias: [渠道ID]
+        sync: false
+
+      - name: channel_name
+        role: dimension
+        description: 渠道名称，枚举值为自营APP/京东金融/抖音/线下门店-北京/线下门店-上海。
+        alias: [渠道, 获客渠道, 放款渠道, 来源渠道, 销售渠道, channel]
+        examples: [自营APP, 京东金融, 抖音, 线下门店-北京, 线下门店-上海]
         sync: true
 
-      - name: brand
+      - name: channel_type
         role: dimension
-        description: 商品品牌名称。
-        alias: [品牌, 品牌名称]
+        description: 渠道类型，枚举值为线上/线下。
+        alias: [渠道类型, 线上线下, 渠道分类]
+        examples: [线上, 线下]
         sync: true
 
   - name: dim_date
     role: dim
-    description: 时间维度表，用于多时间粒度分析。
+    layer: DIM
+    description: 时间维度表，支持按年/月/季度多粒度分析。
     columns:
       - name: date_id
         role: primary_key
-        description: 日期唯一标识，格式 yyyyMMdd。
+        description: 日期唯一标识，格式yyyyMMdd，如20250101。
         alias: [日期ID, 日期]
         sync: false
 
@@ -99,78 +81,412 @@ tables:
         alias: [年, 年份]
         sync: false
 
-      - name: quarter
-        role: dimension
-        description: 季度。
-        alias: [季度]
-        sync: true
-
       - name: month
         role: dimension
-        description: 月份。
+        description: 月份，1-12。
         alias: [月, 月份]
+        sync: false
+
+      - name: quarter
+        role: dimension
+        description: 季度，1-4。
+        alias: [季度, Q1, Q2, Q3, Q4]
         sync: false
 
       - name: day
         role: dimension
-        description: 日。
+        description: 日，1-31。
         alias: [日, 天]
         sync: false
 
-  - name: fact_order
+  # ── DWD 层 ────────────────────────────────────────────────────────
+
+  - name: dwd_loan
     role: fact
-    description: 订单事实表，记录订单数量和金额等核心指标。
+    layer: DWD
+    description: >
+      放款事实表，DWD明细层，记录每一笔放款的完整信息，共约30000条。
+      包含借款人、产品、渠道、放款金额、还款期数等核心字段。
+      按月统计时优先使用ADS层的ads_loan_monthly，明细分析或过滤个体记录时使用本表。
     columns:
-      - name: order_id
+      - name: loan_id
         role: primary_key
-        description: 订单唯一标识。
-        alias: [订单ID]
+        description: 放款唯一标识。
+        alias: [贷款ID, 放款ID, 借款ID]
         sync: false
 
-      - name: customer_id
+      - name: borrower_id
+        role: dimension
+        description: 借款人唯一标识。
+        alias: [借款人ID, 用户ID, 客户ID]
+        sync: false
+
+      - name: product_type_id
         role: foreign_key
-        description: 关联客户维度的外键。
-        alias: [客户ID, 用户ID]
+        description: 关联dim_product_type的外键，标识本笔贷款的产品类型。
+        alias: [产品类型ID]
         sync: false
 
-      - name: product_id
+      - name: channel_id
         role: foreign_key
-        description: 关联商品维度的外键。
-        alias: [商品ID, 产品ID]
+        description: 关联dim_channel的外键，标识本笔贷款的来源渠道。
+        alias: [渠道ID]
         sync: false
 
-      - name: date_id
+      - name: loan_date_id
         role: foreign_key
-        description: 关联时间维度的外键。
-        alias: [日期, 下单日期]
+        description: 放款日期，关联dim_date，格式yyyyMMdd。
+        alias: [放款日期, 放款时间, 贷款日期]
         sync: false
 
-      - name: region_id
-        role: foreign_key
-        description: 关联地区维度的外键。
-        alias: [地区ID, 区域ID]
-        sync: false
-
-      - name: order_quantity
+      - name: loan_amount
         role: measure
-        description: 订单中商品的购买数量。
-        alias: [销量, 购买数量, 件数]
+        description: 本笔放款金额，单位元。核心指标字段，统计放款总额/平均放款金额均用此字段。
+        alias: [放款金额, 贷款金额, 借款金额, 放款额, 贷款额]
         sync: false
 
-      - name: order_amount
-        role: measure
-        description: 订单金额。
-        alias: [销售额, 订单金额, 收入]
+      - name: term_months
+        role: dimension
+        description: 还款期数，3/6/12期。
+        alias: [期数, 还款期数, 贷款期限]
+        examples: [3, 6, 12]
         sync: false
+
+      - name: monthly_payment
+        role: measure
+        description: 每月应还金额，按等额还款法计算。
+        alias: [月供, 每月还款, 月还款额]
+        sync: false
+
+      - name: loan_status
+        role: dimension
+        description: 贷款当前状态，枚举值为还款中/已结清/逾期/坏账。
+        alias: [贷款状态, 还款状态, 借款状态]
+        examples: [还款中, 已结清, 逾期, 坏账]
+        sync: true
+
+  - name: dwd_repayment
+    role: fact
+    layer: DWD
+    description: >
+      还款记录表，DWD明细层，记录每笔贷款每一期的还款情况。
+      status=已还表示按时还款，status=逾期表示未还，status=未到期表示尚未到还款日。
+      计算回收率时用actual_amount/due_amount。
+    columns:
+      - name: repayment_id
+        role: primary_key
+        description: 还款记录唯一标识。
+        alias: [还款ID, 还款记录ID]
+        sync: false
+
+      - name: loan_id
+        role: foreign_key
+        description: 关联dwd_loan的外键。
+        alias: [贷款ID, 放款ID]
+        sync: false
+
+      - name: period
+        role: dimension
+        description: 第几期，从1开始，最大值为该产品期数（3/6/12）。
+        alias: [期次, 还款期次, 第几期]
+        sync: false
+
+      - name: due_date_id
+        role: foreign_key
+        description: 应还款日期，关联dim_date，格式yyyyMMdd。
+        alias: [应还日期, 到期日期, 还款日]
+        sync: false
+
+      - name: due_amount
+        role: measure
+        description: 本期应还金额，等于月供金额。
+        alias: [应还金额, 应收金额, 到期应还]
+        sync: false
+
+      - name: actual_date_id
+        role: foreign_key
+        description: 实际还款日期，NULL表示未还款。
+        alias: [实际还款日, 还款日期]
+        sync: false
+
+      - name: actual_amount
+        role: measure
+        description: 实际还款金额，NULL表示未还款。回收率=SUM(actual_amount)/SUM(due_amount)。
+        alias: [实收金额, 实际收款, 回收金额]
+        sync: false
+
+      - name: status
+        role: dimension
+        description: 还款状态，枚举值为已还/逾期/未到期。
+        alias: [还款状态, 状态]
+        examples: [已还, 逾期, 未到期]
+        sync: true
+
+  - name: dwd_overdue
+    role: fact
+    layer: DWD
+    description: >
+      逾期记录表，DWD明细层，记录每笔逾期贷款的详细信息。
+      bucket字段按逾期天数分桶：M1（1-30天）/M2（31-60天）/M3+（60天以上）。
+      按月统计逾期率时优先使用ADS层的ads_overdue_monthly，明细查询或过滤特定逾期桶时使用本表。
+    columns:
+      - name: overdue_id
+        role: primary_key
+        description: 逾期记录唯一标识。
+        alias: [逾期ID, 逾期记录ID]
+        sync: false
+
+      - name: loan_id
+        role: foreign_key
+        description: 关联dwd_loan的外键。
+        alias: [贷款ID, 放款ID]
+        sync: false
+
+      - name: period
+        role: dimension
+        description: 逾期发生在第几期。
+        alias: [逾期期次, 逾期期数]
+        sync: false
+
+      - name: overdue_days
+        role: measure
+        description: 逾期天数，从应还日至今（或结清日）的天数。
+        alias: [逾期天数, 拖欠天数, 账龄]
+        sync: false
+
+      - name: overdue_amount
+        role: measure
+        description: 逾期金额，即未还的应还金额。
+        alias: [逾期金额, 逾期余额, 拖欠金额, 违约金额]
+        sync: false
+
+      - name: overdue_date_id
+        role: foreign_key
+        description: 逾期发生日期，关联dim_date。
+        alias: [逾期日期, 违约日期]
+        sync: false
+
+      - name: bucket
+        role: dimension
+        description: 逾期分桶，M1=逾期1-30天（首逾），M2=31-60天，M3+=60天以上（严重逾期）。
+        alias: [逾期桶, 逾期段, 逾期级别, M1, M2, M3]
+        examples: [M1, M2, M3+]
+        sync: true
+
+  # ── ADS 层 ────────────────────────────────────────────────────────
+
+  - name: ads_loan_monthly
+    role: fact
+    layer: ADS
+    description: >
+      月度放款汇总表，ADS层已聚合结果。
+      按统计月份、渠道、产品三个维度聚合，直接存储放款笔数、放款总额、平均放款金额。
+      查询"各渠道放款总额"、"各月放款趋势"等问题时首选本表，无需JOIN其他表。
+    columns:
+      - name: stat_month
+        role: dimension
+        description: 统计月份，格式2025-01，是本行数据所属的月份。
+        alias: [月份, 统计月, 月, 年月]
+        examples: [2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06]
+        sync: false
+
+      - name: channel_name
+        role: dimension
+        description: 渠道名称，枚举值同dim_channel.channel_name。
+        alias: [渠道, 获客渠道, 放款渠道]
+        examples: [自营APP, 京东金融, 抖音, 线下门店-北京, 线下门店-上海]
+        sync: true
+
+      - name: product_name
+        role: dimension
+        description: 产品名称，枚举值同dim_product_type.product_name。
+        alias: [产品, 产品名称, 贷款产品]
+        examples: [消费分期12期, 消费分期6期, 小额消费贷3期]
+        sync: true
+
+      - name: loan_count
+        role: measure
+        description: 当月该渠道该产品的放款笔数。等同于COUNT(dwd_loan.loan_id)的月度聚合。
+        alias: [放款笔数, 放款量, 放款单量, 放款数量, 新增贷款笔数]
+        sync: false
+
+      - name: loan_amount
+        role: measure
+        description: 当月该渠道该产品的放款总额，单位元。等同于SUM(dwd_loan.loan_amount)的月度聚合。
+        alias: [放款金额, 放款总额, 放款额, 发放金额, 放款规模]
+        sync: false
+
+      - name: avg_loan_amount
+        role: measure
+        description: 当月该渠道该产品的平均放款金额，单位元。等同于AVG(dwd_loan.loan_amount)的月度聚合。
+        alias: [平均放款金额, 件均放款, 平均件均, 平均贷款金额, 件均]
+        sync: false
+
+  - name: ads_overdue_monthly
+    role: fact
+    layer: ADS
+    description: >
+      月度逾期汇总表，ADS层已聚合结果。
+      按统计月份、渠道、产品三个维度聚合，直接存储逾期率、首逾率等已计算指标。
+      查询"上月逾期率"、"各渠道M1逾期率"等问题时首选本表，无需复杂JOIN计算。
+    columns:
+      - name: stat_month
+        role: dimension
+        description: 统计月份，格式2025-01。
+        alias: [月份, 统计月, 月, 年月]
+        examples: [2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06]
+        sync: false
+
+      - name: channel_name
+        role: dimension
+        description: 渠道名称，枚举值同dim_channel.channel_name。
+        alias: [渠道, 获客渠道, 放款渠道]
+        examples: [自营APP, 京东金融, 抖音, 线下门店-北京, 线下门店-上海]
+        sync: true
+
+      - name: product_name
+        role: dimension
+        description: 产品名称，枚举值同dim_product_type.product_name。
+        alias: [产品, 产品名称, 贷款产品]
+        examples: [消费分期12期, 消费分期6期, 小额消费贷3期]
+        sync: true
+
+      - name: due_count
+        role: measure
+        description: 当月到期应还笔数，是计算逾期率的分母。
+        alias: [到期笔数, 应还笔数, 到期应还笔数]
+        sync: false
+
+      - name: due_amount
+        role: measure
+        description: 当月到期应还总金额，单位元。
+        alias: [应还金额, 到期金额, 应收金额]
+        sync: false
+
+      - name: overdue_count
+        role: measure
+        description: 当月逾期笔数。
+        alias: [逾期笔数, 违约笔数, 逾期单量]
+        sync: false
+
+      - name: overdue_amount
+        role: measure
+        description: 当月逾期总金额，单位元。
+        alias: [逾期金额, 违约金额, 逾期余额]
+        sync: false
+
+      - name: m1_count
+        role: measure
+        description: 当月M1（首次逾期，逾期1-30天）笔数。
+        alias: [M1逾期笔数, 首逾笔数, M1笔数]
+        sync: false
+
+      - name: m1_overdue_rate
+        role: measure
+        description: >
+          首逾率(M1)：当月M1逾期笔数/当月到期笔数，已计算好的比率。
+          正常区间约2-4%，超过6%需关注。直接查此字段，无需二次计算。
+        alias: [首逾率, M1逾期率, M1首逾率, 首次逾期率]
+        sync: false
+
+      - name: overall_overdue_rate
+        role: measure
+        description: >
+          整体逾期率：当月逾期金额/当月应还金额，已计算好的比率。
+          反映整体资产质量，正常区间约3-6%。直接查此字段，无需二次计算。
+        alias: [逾期率, 整体逾期率, 综合逾期率, 违约率]
+        sync: false
+
+# ── 指标定义 ──────────────────────────────────────────────────────────
 
 metrics:
-  - name: GMV
-    description: 全称Gross Merchandise Value，表示所有订单的成交金额总和。
+  - name: 放款金额
+    description: >
+      当期所有放款记录的loan_amount总和，反映业务规模。
+      按月统计时用ads_loan_monthly.loan_amount，按渠道/产品细分时加GROUP BY。
+      明细查询用dwd_loan.loan_amount。
     relevant_columns:
-      - fact_order.order_amount
-    alias: [成交总额, 订单总额]
-  - name: AOV
-    description: 全称Average Order Value，表示所有订单的成交金额平均值。
+      - dwd_loan.loan_amount
+      - ads_loan_monthly.loan_amount
+    alias: [放款额, 放款总额, 发放金额, 放款规模, 贷款金额]
+    ambiguous: false
+
+  - name: 放款笔数
+    description: >
+      当期新增放款的总笔数，反映业务量规模。
+      计算：COUNT(dwd_loan.loan_id)，或直接用ads_loan_monthly.loan_count（ADS层已汇总）。
+      按渠道分析时GROUP BY channel_name，按产品分析时GROUP BY product_name。
     relevant_columns:
-      - fact_order.order_quantity
-    alias: [平均单价, 平均订单金额]
+      - dwd_loan.loan_id
+      - ads_loan_monthly.loan_count
+    alias: [放款量, 放款单量, 新增贷款笔数, 新增放款量, 放款数量]
+    ambiguous: false
+
+  - name: 平均放款金额
+    description: >
+      当期放款金额的平均值，反映客单价水平。
+      计算：AVG(dwd_loan.loan_amount)，或直接用ads_loan_monthly.avg_loan_amount。
+    relevant_columns:
+      - dwd_loan.loan_amount
+      - ads_loan_monthly.avg_loan_amount
+    alias: [件均放款, 平均件均, 平均贷款金额, 件均, 客单价]
+    ambiguous: false
+
+  - name: 逾期率
+    description: >
+      逾期率有多种口径，需要用户澄清：
+      - 首逾率(M1)：当月新增M1逾期笔数/当月到期应还笔数，正常约2-4%
+      - 整体逾期率：当月逾期金额/当月应还金额，正常约3-6%
+      - 在贷逾期率：当前逾期余额/在贷余额
+      口径不明时触发追问，不要直接生成SQL。
+      澄清后使用ads_overdue_monthly中对应字段（m1_overdue_rate或overall_overdue_rate）。
+    relevant_columns:
+      - ads_overdue_monthly.m1_overdue_rate
+      - ads_overdue_monthly.overall_overdue_rate
+      - dwd_overdue.overdue_amount
+    alias: [违约率, 坏账率, 逾期比率]
+    ambiguous: true
+
+  - name: 首逾率
+    description: >
+      首逾率(M1)：当月到期还款中，首次逾期（逾期桶=M1，逾期1-30天）的笔数占当月到期总笔数的比例。
+      直接使用ads_overdue_monthly.m1_overdue_rate，已按月/渠道/产品聚合。
+      正常区间约2-4%，超过6%需关注。
+    relevant_columns:
+      - ads_overdue_monthly.m1_overdue_rate
+      - ads_overdue_monthly.m1_count
+      - ads_overdue_monthly.due_count
+    alias: [M1逾期率, M1首逾率, 首次逾期率, M1]
+    ambiguous: false
+
+  - name: 在贷逾期率
+    description: >
+      当前时点逾期余额/在贷余额×100%，反映存量资产质量。
+      计算：SUM(dwd_overdue.overdue_amount) / SUM(dwd_loan.loan_amount) WHERE loan_status='还款中'。
+      正常区间约3-6%。
+    relevant_columns:
+      - dwd_overdue.overdue_amount
+      - dwd_loan.loan_amount
+      - dwd_loan.loan_status
+    alias: [存量逾期率, 在贷违约率]
+    ambiguous: false
+
+  - name: 回收率
+    description: >
+      实收金额/应收金额×100%，反映还款执行情况，越高越好。
+      计算：SUM(dwd_repayment.actual_amount) / SUM(dwd_repayment.due_amount)，
+      仅统计status IN ('已还','逾期') 的已到期记录。
+    relevant_columns:
+      - dwd_repayment.actual_amount
+      - dwd_repayment.due_amount
+    alias: [还款率, 回款率, 收款率, 还款回收率]
+    ambiguous: false
+
+  - name: 平均逾期天数
+    description: >
+      逾期记录的平均逾期天数，反映逾期严重程度。
+      计算：AVG(dwd_overdue.overdue_days)，仅统计有逾期记录的贷款。
+    relevant_columns:
+      - dwd_overdue.overdue_days
+    alias: [平均账龄, 平均拖欠天数, 平均逾期时长]
+    ambiguous: false

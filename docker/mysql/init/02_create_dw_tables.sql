@@ -1,74 +1,109 @@
 SET NAMES utf8mb4;
 USE dw;
 
-CREATE TABLE IF NOT EXISTS dim_region (
-    region_id INT PRIMARY KEY AUTO_INCREMENT,
-    province VARCHAR(100) COMMENT '省份',
-    region_name VARCHAR(100) COMMENT '大区名称',
-    country VARCHAR(100) COMMENT '国家'
-) COMMENT='地区维度表';
+-- ─────────────────────────────────────────
+-- DIM 层（维度表）
+-- ─────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS dim_customer (
-    customer_id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_name VARCHAR(100) COMMENT '客户名称',
-    gender VARCHAR(10) COMMENT '性别',
-    member_level VARCHAR(50) COMMENT '会员等级'
-) COMMENT='客户维度表';
+CREATE TABLE IF NOT EXISTS dim_product_type (
+    product_type_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_name    VARCHAR(100)   NOT NULL COMMENT '产品名称',
+    term_months     INT            NOT NULL COMMENT '还款期数',
+    annual_rate     DECIMAL(5,4)   NOT NULL COMMENT '年化利率',
+    max_loan_amount DECIMAL(10,2)  NOT NULL COMMENT '最高放款金额'
+) COMMENT='产品类型维度表';
 
-CREATE TABLE IF NOT EXISTS dim_product (
-    product_id INT PRIMARY KEY AUTO_INCREMENT,
-    product_name VARCHAR(200) COMMENT '商品名称',
-    category VARCHAR(100) COMMENT '品类',
-    brand VARCHAR(100) COMMENT '品牌'
-) COMMENT='商品维度表';
+CREATE TABLE IF NOT EXISTS dim_channel (
+    channel_id   INT PRIMARY KEY AUTO_INCREMENT,
+    channel_name VARCHAR(100) NOT NULL COMMENT '渠道名称',
+    channel_type VARCHAR(50)  NOT NULL COMMENT '渠道类型：线上/线下'
+) COMMENT='渠道维度表';
 
 CREATE TABLE IF NOT EXISTS dim_date (
     date_id INT PRIMARY KEY COMMENT '日期ID，格式yyyyMMdd',
-    year INT COMMENT '年份',
-    quarter INT COMMENT '季度',
-    month INT COMMENT '月份',
-    day INT COMMENT '日'
+    year    INT NOT NULL COMMENT '年份',
+    month   INT NOT NULL COMMENT '月份',
+    quarter INT NOT NULL COMMENT '季度',
+    day     INT NOT NULL COMMENT '日'
 ) COMMENT='时间维度表';
 
-CREATE TABLE IF NOT EXISTS fact_order (
-    order_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT COMMENT '客户ID',
-    product_id INT COMMENT '商品ID',
-    date_id INT COMMENT '日期ID',
-    region_id INT COMMENT '地区ID',
-    order_quantity INT COMMENT '购买数量',
-    order_amount DECIMAL(12,2) COMMENT '订单金额'
-) COMMENT='订单事实表';
+-- ─────────────────────────────────────────
+-- DWD 层（明细层）
+-- ─────────────────────────────────────────
 
--- 插入示例数据
-INSERT INTO dim_region (province, region_name, country) VALUES
-('广东省', '华南', '中国'),
-('浙江省', '华东', '中国'),
-('北京市', '华北', '中国'),
-('四川省', '西南', '中国');
+CREATE TABLE IF NOT EXISTS dwd_loan (
+    loan_id         BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '放款唯一ID',
+    borrower_id     BIGINT         NOT NULL COMMENT '借款人ID',
+    product_type_id INT            NOT NULL COMMENT '产品类型，关联dim_product_type',
+    channel_id      INT            NOT NULL COMMENT '放款渠道，关联dim_channel',
+    loan_date_id    INT            NOT NULL COMMENT '放款日期，关联dim_date',
+    loan_amount     DECIMAL(10,2)  NOT NULL COMMENT '放款金额',
+    term_months     INT            NOT NULL COMMENT '还款期数',
+    monthly_payment DECIMAL(10,2)  NOT NULL COMMENT '每月应还金额',
+    loan_status     VARCHAR(20)    NOT NULL COMMENT '贷款状态：还款中/已结清/逾期/坏账'
+) COMMENT='放款事实表，DWD层明细数据';
 
-INSERT INTO dim_customer (customer_name, gender, member_level) VALUES
-('张三', '男', '黄金'),
-('李四', '女', '钻石'),
-('王五', '男', '普通'),
-('赵六', '女', '白金');
+CREATE TABLE IF NOT EXISTS dwd_repayment (
+    repayment_id   BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '还款记录ID',
+    loan_id        BIGINT         NOT NULL COMMENT '关联放款ID',
+    period         INT            NOT NULL COMMENT '第几期（1-12）',
+    due_date_id    INT            NOT NULL COMMENT '应还款日期，关联dim_date',
+    due_amount     DECIMAL(10,2)  NOT NULL COMMENT '应还金额',
+    actual_date_id INT            NULL COMMENT '实际还款日期，NULL表示未还',
+    actual_amount  DECIMAL(10,2)  NULL COMMENT '实际还款金额，NULL表示未还',
+    status         VARCHAR(20)    NOT NULL COMMENT '状态：已还/逾期/未到期'
+) COMMENT='还款记录表，DWD层明细数据';
 
-INSERT INTO dim_product (product_name, category, brand) VALUES
-('iPhone 15', '手机', '苹果'),
-('MacBook Pro', '电脑', '苹果'),
-('小米14', '手机', '小米'),
-('耐克运动鞋', '鞋类', '耐克');
+CREATE TABLE IF NOT EXISTS dwd_overdue (
+    overdue_id     BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '逾期记录ID',
+    loan_id        BIGINT         NOT NULL COMMENT '关联放款ID',
+    period         INT            NOT NULL COMMENT '逾期期数',
+    overdue_days   INT            NOT NULL COMMENT '逾期天数',
+    overdue_amount DECIMAL(10,2)  NOT NULL COMMENT '逾期金额',
+    overdue_date_id INT           NOT NULL COMMENT '逾期日期，关联dim_date',
+    bucket         VARCHAR(10)    NOT NULL COMMENT '逾期桶：M1/M2/M3+'
+) COMMENT='逾期记录表，DWD层明细数据';
 
-INSERT INTO dim_date (date_id, year, quarter, month, day) VALUES
-(20240101, 2024, 1, 1, 1),
-(20240201, 2024, 1, 2, 1),
-(20240301, 2024, 1, 3, 1),
-(20240401, 2024, 2, 4, 1);
+-- ─────────────────────────────────────────
+-- ADS 层（已聚合结果，直接查）
+-- ─────────────────────────────────────────
 
-INSERT INTO fact_order (customer_id, product_id, date_id, region_id, order_quantity, order_amount) VALUES
-(1, 1, 20240101, 1, 2, 15998.00),
-(2, 2, 20240201, 2, 1, 14999.00),
-(3, 3, 20240301, 3, 1, 3999.00),
-(4, 4, 20240401, 4, 3, 1197.00),
-(1, 3, 20240101, 1, 1, 3999.00),
-(2, 1, 20240201, 2, 1, 7999.00);
+CREATE TABLE IF NOT EXISTS ads_loan_monthly (
+    stat_month      VARCHAR(7)     NOT NULL COMMENT '统计月份，格式2025-01',
+    channel_name    VARCHAR(100)   NOT NULL COMMENT '渠道名称',
+    product_name    VARCHAR(100)   NOT NULL COMMENT '产品名称',
+    loan_count      INT            NOT NULL COMMENT '放款笔数',
+    loan_amount     DECIMAL(12,2)  NOT NULL COMMENT '放款总额',
+    avg_loan_amount DECIMAL(10,2)  NOT NULL COMMENT '平均放款金额',
+    PRIMARY KEY (stat_month, channel_name, product_name)
+) COMMENT='月度放款汇总，ADS层已聚合';
+
+CREATE TABLE IF NOT EXISTS ads_overdue_monthly (
+    stat_month           VARCHAR(7)    NOT NULL COMMENT '统计月份，格式2025-01',
+    channel_name         VARCHAR(100)  NOT NULL COMMENT '渠道名称',
+    product_name         VARCHAR(100)  NOT NULL COMMENT '产品名称',
+    due_count            INT           NOT NULL COMMENT '到期应还笔数',
+    due_amount           DECIMAL(12,2) NOT NULL COMMENT '到期应还金额',
+    overdue_count        INT           NOT NULL COMMENT '逾期笔数',
+    overdue_amount       DECIMAL(12,2) NOT NULL COMMENT '逾期金额',
+    m1_count             INT           NOT NULL COMMENT 'M1逾期笔数',
+    m1_overdue_rate      DECIMAL(8,6)  NOT NULL COMMENT '首逾率：M1逾期笔数/到期笔数',
+    overall_overdue_rate DECIMAL(8,6)  NOT NULL COMMENT '整体逾期率：逾期金额/应还金额',
+    PRIMARY KEY (stat_month, channel_name, product_name)
+) COMMENT='月度逾期汇总，ADS层已聚合';
+
+-- ─────────────────────────────────────────
+-- DIM 层静态数据
+-- ─────────────────────────────────────────
+
+INSERT INTO dim_product_type (product_name, term_months, annual_rate, max_loan_amount) VALUES
+('消费分期12期', 12, 0.1800, 50000.00),
+('消费分期6期',   6, 0.1600, 30000.00),
+('小额消费贷3期', 3, 0.2400, 10000.00);
+
+INSERT INTO dim_channel (channel_name, channel_type) VALUES
+('自营APP',       '线上'),
+('京东金融',      '线上'),
+('抖音',          '线上'),
+('线下门店-北京', '线下'),
+('线下门店-上海', '线下');
