@@ -9,6 +9,7 @@ class ColumnConfig:
     description: str
     alias: list[str]
     sync: bool
+    examples: Optional[list] = None
 
 
 @dataclass
@@ -17,6 +18,7 @@ class TableConfig:
     role: str
     description: str
     columns: list[ColumnConfig]
+    layer: Optional[str] = None
 
 
 @dataclass
@@ -25,6 +27,7 @@ class MetricConfig:
     description: str
     relevant_columns: list[str]
     alias: list[str]
+    ambiguous: bool = False
 
 
 @dataclass

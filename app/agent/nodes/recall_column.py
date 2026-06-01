@@ -68,6 +68,6 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
     except Exception as e:
         # try块中llm调用扩展关键词，qdrant搜索都可能失败，失败就报错给前端和写入日志
         writer({"type": "progress", "step": "召回字段", "status": "error"})
-        logger.error(f"召回字段信息失败: {str(e)}")
+        logger.error(f"召回字段信息失败: {str(e)}", exc_info=True)
         # 将异常继续向上抛出，告诉LangGraph这里出错了
         raise

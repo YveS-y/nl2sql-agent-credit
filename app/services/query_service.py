@@ -30,7 +30,7 @@ class QueryService:
 
 
     # 真正干活的业务方法
-    async def query(self, query: str):
+    async def query(self, query: str, conversation_history: list[dict] = None):
         context = DataAgentContext( # 把依赖再打包成 Agent 的上下文
             embedding_client=self.embedding_client,
             column_qdrant_repository=self.column_qdrant_repository,
@@ -39,7 +39,7 @@ class QueryService:
             meta_mysql_repository=self.meta_mysql_repository,
             dw_mysql_repository=self.dw_mysql_repository
         )
-        state = DataAgentState(query=query) # 把用户问题包成初始状态
+        state = DataAgentState(query=query, conversation_history=conversation_history or []) # 把用户问题包成初始状态
         try:
             # 异步生成器 + for chunk 每次graph输出就处理一下，返回一次
             async for chunk in graph.astream(input=state, context=context, stream_mode="custom"):

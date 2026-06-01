@@ -285,9 +285,9 @@ tables:
     columns:
       - name: stat_month
         role: dimension
-        description: 统计月份，格式2025-01，是本行数据所属的月份。
+        description: 统计月份，格式2025-01，是本行数据所属的月份。数据覆盖2025-01至2026-05。
         alias: [月份, 统计月, 月, 年月]
-        examples: [2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06]
+        examples: [2025-01, 2025-06, 2025-12, 2026-01, 2026-04, 2026-05]
         sync: false
 
       - name: channel_name
@@ -332,9 +332,9 @@ tables:
     columns:
       - name: stat_month
         role: dimension
-        description: 统计月份，格式2025-01。
+        description: 统计月份，格式2025-01。数据覆盖2025-01至2026-05。
         alias: [月份, 统计月, 月, 年月]
-        examples: [2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06]
+        examples: [2025-01, 2025-06, 2025-12, 2026-01, 2026-04, 2026-05]
         sync: false
 
       - name: channel_name

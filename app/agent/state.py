@@ -41,6 +41,9 @@ class DBInfoState(TypedDict):
 
 class DataAgentState(TypedDict):
     query: str  # 用户查询
+    conversation_history: list[dict]  # 多轮对话历史，格式：[{"role": "user/assistant", "content": "..."}]
+    clarification: str  # 反问内容，空字符串表示问题清晰可以继续
+    clarification_question: str | None  # 歧义指标追问，None表示无歧义
     keywords: list[str]  # 用户查询的关键字
 
     retrieved_columns: list[ColumnInfo]  # 召回的字段信息

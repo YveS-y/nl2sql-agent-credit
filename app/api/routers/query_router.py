@@ -15,7 +15,7 @@ async def query(
 ):
     # 要返回的内容和 SSE 协议
     return StreamingResponse(
-        query_service.query(query.query), media_type="text/event-stream"
+        query_service.query(query.query, query.conversation_history), media_type="text/event-stream"
     )
 # query_service.query(query.query)
 #    ↑服务实例  ↑方法   ↑参数  ↑字段

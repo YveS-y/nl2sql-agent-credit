@@ -85,6 +85,7 @@ const question = ref("");
 const loading = ref(false);
 const messages = ref([]);
 const messagesEl = ref(null);
+const conversationHistory = ref([]);  // 多轮对话历史
 
 function scrollToBottom() {
   const el = messagesEl.value;
@@ -100,6 +101,8 @@ async function sendQuestion() {
   loading.value = true;
 
   messages.value.push({role: "user", type: "text", content: q});
+  // 把这轮用户问题加入历史（发请求前就记录）
+  conversationHistory.value.push({role: "user", content: q});
 
   // steps 容器
   const stepIndex =
@@ -113,10 +116,12 @@ async function sendQuestion() {
   scrollToBottom();
 
   try {
+    // 发请求时带上历史（当前问题已在历史里，所以传前N-1条）
+    const historyToSend = conversationHistory.value.slice(0, -1);
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({query: q}),
+      body: JSON.stringify({query: q, conversation_history: historyToSend}),
     });
 
     if (!response.body) throw new Error("服务器未返回流");
@@ -172,12 +177,31 @@ async function sendQuestion() {
 
         // ✅ 表格结果
         else if (data.type === "result" && Array.isArray(data.data)) {
+          if (data.data.length === 0) {
+            messages.value.push({
+              role: "assistant",
+              type: "text",
+              content: "查询结果为空，没有符合条件的数据。",
+            });
+          } else {
+            messages.value.push({
+              role: "assistant",
+              type: "table",
+              columns: Object.keys(data.data[0]),
+              rows: data.data,
+            });
+          }
+        }
+
+        // ✅ 反问
+        else if (data.type === "clarification") {
           messages.value.push({
             role: "assistant",
-            type: "table",
-            columns: Object.keys(data.data[0] || {}),
-            rows: data.data,
+            type: "text",
+            content: data.question,
           });
+          // 把追问也加入历史，供下一轮改写参考
+          conversationHistory.value.push({role: "assistant", content: data.question});
         }
 
         // ✅ 错误

@@ -17,7 +17,7 @@ DB_CFG = dict(host="localhost", port=3306, user="test1",
 # ── 业务参数 ───────────────────────────────────────────────────────
 LOAN_COUNT   = 30000
 START_DATE   = date(2025, 1, 1)
-END_DATE     = date(2025, 6, 30)
+END_DATE     = date(2026, 5, 31)
 OVERDUE_RATE = 0.02   # 每期逾期概率，整体约6%
 
 PRODUCTS = [
@@ -61,12 +61,12 @@ def random_date(start: date, end: date) -> date:
 
 
 def build_dim_date(conn):
-    """写入 dim_date，覆盖2025-01 ~ 2026-06（含还款期）。"""
+    """写入 dim_date，覆盖2025-01 ~ 2027-12（含最长12期还款周期）。"""
     cur = conn.cursor()
     cur.execute("DELETE FROM dim_date")
     rows = []
     d = date(2025, 1, 1)
-    while d <= date(2026, 6, 30):
+    while d <= date(2027, 12, 31):
         rows.append((date_to_id(d), d.year, d.month, (d.month - 1) // 3 + 1, d.day))
         d += timedelta(days=1)
     cur.executemany(
@@ -125,7 +125,7 @@ def generate_repayments(conn, loans: dict):
     cur = conn.cursor()
     cur.execute("DELETE FROM dwd_repayment")
 
-    today = date(2025, 7, 1)   # 以7月1日为"今天"
+    today = date(2026, 6, 1)   # 以2026-06-01为"今天"
     overdue_loan_ids = set()
     rows = []
 

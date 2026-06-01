@@ -21,6 +21,8 @@
 4. 生成的SQL的语法必须严格符合数据库环境中指定的数据库类型与版本。
 5. 默认只生成一条SQL，不可生成多条SQL。
 6. 输出必须仅包含一条完整 SQL 语句的纯文本，严禁使用```、```sql 等 Markdown代码块或任何格式化符号。
+7. 【维度聚合规则】如果所用表存在多个维度字段（如渠道、产品、月份），而用户问题只关注其中部分维度，必须对未提及的维度做聚合：SELECT 只保留用户关注的维度，对度量字段使用 SUM/COUNT/AVG，并按用户关注的维度 GROUP BY。例如：用户问"各渠道放款额"而表里有产品维度时，必须 GROUP BY channel_name 并 SUM(loan_amount)，不可直接 SELECT channel_name, loan_amount（否则每个渠道会出现多行）。
+8. 【yyyyMMdd日期字段过滤规则】字段描述中注明"格式yyyyMMdd"的整型日期字段（如loan_date_id、due_date_id、overdue_date_id等），存储的是8位整数（如20260531），过滤时必须转为同格式整数：正确写法 `WHERE loan_date_id = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '%Y%m%d') + 0`；禁止直接与DATE类型比较（如 `= DATE_SUB(CURDATE(), INTERVAL 1 DAY)`），否则隐式类型转换会导致结果为空。
 
 用户查询如下：
 {query}
